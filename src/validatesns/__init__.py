@@ -20,10 +20,12 @@ from six.moves.urllib.request import urlopen
 DEFAULT_CERTIFICATE_URL_REGEX = r"^https://sns\.[-a-z0-9]+\.amazonaws\.com(?:\.cn)?/"
 DEFAULT_MAX_AGE = datetime.timedelta(hours=1)
 
+
 class ValidationError(Exception):
     """
     ValidationError. Raised when a message fails integrity checks.
     """
+
 
 def validate(
     message,
@@ -63,10 +65,11 @@ def validate(
 
     # Passed the basic checks, let's download the cert.
     # We've validated the URL, so aren't worried about a malicious server.
-    certificate = get_certificate(message["SigningCertURL"])
+    certificate = get_certificate(message.get('SigningCertUrl') or message['SigningCertURL'])
 
     # Check the cryptographic signature.
     SignatureValidator(certificate).validate(message)
+
 
 class SigningCertURLValidator(object):
     """
@@ -80,12 +83,18 @@ class SigningCertURLValidator(object):
         if not isinstance(message, dict):
             raise ValidationError("Unexpected message type {!r}".format(type(message).__name__))
 
-        url = message.get("SigningCertURL")
+        # SNS notifications to lambdas come with the key SigningCertUrl instead of SigningCertURL.
+        # We'll check for both here, since there could be disparity between the different notification endpoint types.
+        url = message.get('SigningCertUrl') or message.get('SigningCertURL')
 
-        if isinstance(url, six.string_types) and re.search(self.regex, url):
+        if not isinstance(url, six.string_types):
+            raise ValidationError("Unexpected URL type {!r}".format(type(url).__name__))
+
+        if re.search(self.regex, url):
             return
 
         raise ValidationError("SigningCertURL {!r} doesn't match required format {!r}".format(url, self.regex))
+
 
 class MessageAgeValidator(object):
     """
@@ -120,6 +129,7 @@ class MessageAgeValidator(object):
             raise ValidationError("Unexpected Timestamp format {!r}".format(utc_timestamp_str))
 
         return utc_timestamp
+
 
 class SignatureValidator(object):
     """
@@ -181,13 +191,11 @@ class SignatureValidator(object):
     def _get_signing_keys(self, message):
         message_type = message.get("Type")
 
-        if message_type == "Notification":
-            if "Subject" in message:
-                return ("Message", "MessageId", "Subject", "Timestamp", "TopicArn", "Type")
+        if message_type is not None and message_type in ("SubscriptionConfirmation", "UnsubscribeConfirmation"):
+            return "Message", "MessageId", "SubscribeURL", "Timestamp", "Token", "TopicArn", "Type"
+
+        else:
+            if message.get('Subject') is not None:
+                return "Message", "MessageId", "Subject", "Timestamp", "TopicArn", "Type"
             else:
-                return ("Message", "MessageId", "Timestamp", "TopicArn", "Type",)
-
-        if message_type in ("SubscriptionConfirmation", "UnsubscribeConfirmation"):
-            return ("Message", "MessageId", "SubscribeURL", "Timestamp", "Token", "TopicArn", "Type")
-
-        raise ValidationError("Unknown message type {!r}".format(message_type))
+                return "Message", "MessageId", "Timestamp", "TopicArn", "Type"

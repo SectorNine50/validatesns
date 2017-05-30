@@ -5,8 +5,7 @@ import unittest
 import mock
 import oscrypto.asymmetric
 import six
-
-from validatesns import MessageAgeValidator, SignatureValidator, ValidationError, validate as _validate_fn
+from validatesns import SignatureValidator, ValidationError, validate as _validate_fn
 
 PRIVATE_KEY = six.b("""
 -----BEGIN PRIVATE KEY-----
@@ -102,6 +101,7 @@ class TestMixin(object):
     def serialize_datetime(self, dt):
         return dt.strftime("%Y-%m-%dT%H:%M:%S.{}Z".format(dt.strftime("%f")[:3]))
 
+
 class ValidateTestCase(TestMixin, unittest.TestCase):
     def test_invalid_max_age_parameter(self):
         self.validate_kwargs["max_age"] = 5
@@ -112,6 +112,7 @@ class ValidateTestCase(TestMixin, unittest.TestCase):
         self.message = []
         with self.assertRaisesRegexp(ValidationError, r"^Unexpected message type .*$"):
             self.validate()
+
 
 class SigningCertURLValidatorTestCase(TestMixin, unittest.TestCase):
     def test_valid_com_signing_cert_url(self):
@@ -144,6 +145,7 @@ class SigningCertURLValidatorTestCase(TestMixin, unittest.TestCase):
         with self.assertRaisesRegexp(ValidationError, r"^SigningCertURL .* doesn't match required format .*"):
             self.validate()
 
+
 class MessageAgeValidatorTestCase(TestMixin, unittest.TestCase):
     def test_valid_age(self):
         self.message["Timestamp"] = self.serialize_datetime(self.utc_now)
@@ -174,6 +176,7 @@ class MessageAgeValidatorTestCase(TestMixin, unittest.TestCase):
         self.message["Timestamp"] = "January 5 2015"
         with self.assertRaisesRegexp(ValidationError, r"^Unexpected Timestamp format .*$"):
             self.validate()
+
 
 class SignatureValidatorTestCase(TestMixin, unittest.TestCase):
     def test_missing_signature_version(self):
