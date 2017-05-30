@@ -65,7 +65,7 @@ def validate(
 
     # Passed the basic checks, let's download the cert.
     # We've validated the URL, so aren't worried about a malicious server.
-    certificate = get_certificate(message["SigningCertURL"])
+    certificate = get_certificate(message.get('SigningCertUrl') or message['SigningCertURL'])
 
     # Check the cryptographic signature.
     SignatureValidator(certificate).validate(message)
