@@ -191,13 +191,11 @@ class SignatureValidator(object):
     def _get_signing_keys(self, message):
         message_type = message.get("Type")
 
-        if message_type == "Notification":
-            if "Subject" in message:
-                return ("Message", "MessageId", "Subject", "Timestamp", "TopicArn", "Type")
+        if message_type is not None and message_type in ("SubscriptionConfirmation", "UnsubscribeConfirmation"):
+            return "Message", "MessageId", "SubscribeURL", "Timestamp", "Token", "TopicArn", "Type"
+
+        else:
+            if message.get('Subject') is not None:
+                return "Message", "MessageId", "Subject", "Timestamp", "TopicArn", "Type"
             else:
-                return ("Message", "MessageId", "Timestamp", "TopicArn", "Type",)
-
-        if message_type in ("SubscriptionConfirmation", "UnsubscribeConfirmation"):
-            return ("Message", "MessageId", "SubscribeURL", "Timestamp", "Token", "TopicArn", "Type")
-
-        raise ValidationError("Unknown message type {!r}".format(message_type))
+                return "Message", "MessageId", "Timestamp", "TopicArn", "Type"
