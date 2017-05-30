@@ -20,10 +20,12 @@ from six.moves.urllib.request import urlopen
 DEFAULT_CERTIFICATE_URL_REGEX = r"^https://sns\.[-a-z0-9]+\.amazonaws\.com(?:\.cn)?/"
 DEFAULT_MAX_AGE = datetime.timedelta(hours=1)
 
+
 class ValidationError(Exception):
     """
     ValidationError. Raised when a message fails integrity checks.
     """
+
 
 def validate(
     message,
@@ -68,6 +70,7 @@ def validate(
     # Check the cryptographic signature.
     SignatureValidator(certificate).validate(message)
 
+
 class SigningCertURLValidator(object):
     """
     Validate a message's SigningCertURL is in the expected format.
@@ -80,12 +83,18 @@ class SigningCertURLValidator(object):
         if not isinstance(message, dict):
             raise ValidationError("Unexpected message type {!r}".format(type(message).__name__))
 
-        url = message.get("SigningCertURL")
+        # SNS notifications to lambdas come with the key SigningCertUrl instead of SigningCertURL.
+        # We'll check for both here, since there could be disparity between the different notification endpoint types.
+        url = message.get('SigningCertUrl') or message.get('SigningCertURL')
 
-        if isinstance(url, six.string_types) and re.search(self.regex, url):
+        if not isinstance(url, six.string_types):
+            raise ValidationError("Unexpected URL type {!r}".format(type(url).__name__))
+
+        if re.search(self.regex, url):
             return
 
         raise ValidationError("SigningCertURL {!r} doesn't match required format {!r}".format(url, self.regex))
+
 
 class MessageAgeValidator(object):
     """
@@ -120,6 +129,7 @@ class MessageAgeValidator(object):
             raise ValidationError("Unexpected Timestamp format {!r}".format(utc_timestamp_str))
 
         return utc_timestamp
+
 
 class SignatureValidator(object):
     """
